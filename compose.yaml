@@ -1,0 +1,12 @@
+services:
+  api:
+    build:
+      context: .
+    image: cloudops-api:1.0
+    ports:
+      - "8000:8000"
+    env_file:
+      - development.env
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+    restart: unless-stopped
