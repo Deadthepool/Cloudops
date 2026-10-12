@@ -11,7 +11,8 @@ next_task_id = 1
 
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, strip_whitespace=True)
-    description: str = Field(min_length=1, strip_whitespace=True)
+    # description: str = Field(min_length=1, strip_whitespace=True)
+    description: str = ("")
 
 
 @app.get("/")
