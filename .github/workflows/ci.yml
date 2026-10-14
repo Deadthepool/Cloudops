@@ -65,8 +65,8 @@ jobs:
           script: |
             const token = await core.getIDToken('sts.amazonaws.com');
             const payload = JSON.parse(
-              Buffer.from(token.split('.'[1]), 'base64url').toString()
-              );
+              Buffer.from(token.split('.')[1], 'base64url').toString()
+            );
             core.info(`OIDC Subject: ${payload.sub}`);
             core.info(`OIDC Audience: ${payload.aud}`);
 
