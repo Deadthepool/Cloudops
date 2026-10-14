@@ -3,11 +3,14 @@ name: CloudOps CI
 on:
     push:
       branches:
-        - "feature/**"
+        - main
     pull_request:
-      types: [closed]
       branches:
         - main
+      types:
+        - opened
+        - synchronize
+        - reopened
 permissions:
   contents: read
 jobs:
@@ -47,7 +50,8 @@ jobs:
   push-to-ecr:
     name: Push docker image to ECR
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-    if: github.event.pull_request.merged == true
+    # if: github.event.pull_request.merged == true
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [test, build-image]
     runs-on: ubuntu-latest
 
