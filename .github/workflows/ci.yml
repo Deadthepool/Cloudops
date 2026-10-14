@@ -27,3 +27,17 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -v
+  build-image:
+    name: Build docker image
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: checkout repositories
+        uses: actions/checkout@v4
+
+      - name: build docker image
+        run: docker build -t cloudops-api:ci .
+
+      - name: verify docker image
+        run: docker image inspect cloudops-api:ci
