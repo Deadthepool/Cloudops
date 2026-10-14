@@ -1,11 +1,10 @@
 name: CloudOps CI
 
 on:
-  push:
-    branches:
-      - main
-      - "feature/**"
-  pull_request:
+    push:
+      branches:
+        - "feature/**"
+    pull_request:
     branches:
       - main
 jobs:
@@ -41,3 +40,45 @@ jobs:
 
       - name: verify docker image
         run: docker image inspect cloudops-api:ci
+
+  push-to-ecr:
+    name: Push docker image to ECR
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    needs: [test, build-image]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: checkout code
+        uses: checkout@V4
+
+      - name: configure Aws credentials using AWS OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{vars.AWS_ROLE_ARN}}
+          aws-region: ${{vars.AWS_REGION}}
+      - name: Login to amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and tag image
+        env:
+          ECR_REGISTRY: ${{steps.login-ecr.outputs.registry}}
+          ECR_REPOSITORY: ${{vars.ECR_REPOSITORY}}
+          IMAGE_TAG: ${{github.sha}}
+
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:LATEST"
+
+      - name: Push image to ECR
+        env:
+          ECR_REGISTRY: ${{steps.login-ecr.outputs.registry}}
+          ECR_REPOSITORY: ${{vars.ECR_REPOSITORY}}
+          IMAGE_TAG: ${{github.sha}}
+        run:
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:LATEST"
