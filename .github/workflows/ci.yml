@@ -5,6 +5,7 @@ on:
       branches:
         - "feature/**"
     pull_request:
+      types: [closed]
       branches:
         - main
 permissions:
@@ -45,7 +46,8 @@ jobs:
 
   push-to-ecr:
     name: Push docker image to ECR
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    # if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    if: github.event.pull_request.merged == true
     needs: [test, build-image]
     runs-on: ubuntu-latest
 
