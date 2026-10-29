@@ -1,0 +1,28 @@
+
+{
+  "schemaVersion": "2.2",
+  "description": "Deploy a SHA-tagged CloudOps API image to Kubernetes",
+  "parameters": {
+    "ImageTag": {
+      "type": "String",
+      "description": "40-character Git commit SHA",
+      "allowedPattern": "^[0-9a-f]{40}$"
+    }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "DeployCloudOpsApi",
+      "inputs": {
+        "runCommand": [
+          "set -eu",
+          "IMAGE_TAG='{{ ImageTag }}'",
+          "IMAGE_URI=\"145400477016.dkr.ecr.ap-south-1.amazonaws.com/cloudops-api:${IMAGE_TAG}\"",
+          "KUBECTL=\"$(command -v kubectl)\"",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n default set image deployment/cloudops-api cloudops-api=\"${IMAGE_URI}\"",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n default rollout status deployment/cloudops-api --timeout=180s"
+        ]
+      }
+    }
+  ]
+}

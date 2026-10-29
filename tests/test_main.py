@@ -57,4 +57,78 @@ def test_empty_description_is_rejected():
     )
 
     assert response.status_code == 422
- 
+
+def test_get_task_by_id():
+    create_response = client.post(
+        "/tasks",
+        json={
+            "title": "Learn FastAPI",
+            "description": "Test task retrieval",
+        },
+    )
+    task_id = create_response.json()["id"]
+
+    response = client.get(f"/tasks/{task_id}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == task_id
+    assert response.json()["title"] == "Learn FastAPI"
+    assert response.json()["description"] == "Test task retrieval"
+    assert response.json()["completed"] is False
+
+def test_get_nonexistent_task():
+    response = client.get("/tasks/99999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "task not found"}
+
+def test_complete_task():
+    create_response = client.post(
+        "/tasks",
+        json={
+            "title": "Learn Kubernetes",
+            "description": "Test task completion",
+        }
+    )
+
+    task_id = create_response.json()["id"]
+
+    response = client.patch(f"/tasks/{task_id}/complete")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == task_id
+    assert response.json()["completed"] is True
+
+
+def test_complete_nonexistent_task():
+    response = client.patch("/tasks/99999/complete")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "task not found"}
+
+def test_task_delete():
+    create_response = client.post(
+        "/tasks",
+        json={
+            "title": "Learn Pytest",
+            "description": "Test the task deletion",
+        }
+    )
+
+    task_id = create_response.json()["id"]
+
+    response = client.delete(f"/tasks/{task_id}")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Task deleted successfully"
+
+    get_response = client.get(f"/tasks/{task_id}")
+
+    assert get_response.status_code == 404
+
+def test_delete_nonexistent():
+    response = client.delete("tasks/9999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "task not found"}
+

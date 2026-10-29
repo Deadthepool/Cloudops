@@ -1,5 +1,5 @@
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="CloudOps Task API")
@@ -29,6 +29,43 @@ def health():
 def list_tasks():
     return {"tasks": tasks}
 
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int):
+    for task in tasks:
+        if task["id"] == task_id:
+            return task
+
+    raise HTTPException(
+        status_code=404,
+        detail="task not found"
+    )
+
+@app.patch("/tasks/{task_id}/complete")
+def complete_task(task_id: int):
+    for task in tasks:
+        if task["id"] == task_id:
+            task["completed"] = True
+            return task
+
+    raise HTTPException(
+        status_code=404,
+        detail="task not found"
+    )
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int):
+    for index, task in enumerate(tasks):
+        if task["id"] == task_id:
+            deleted_task = tasks.pop(index)
+            return{
+                "message": "Task deleted successfully",
+                "task": deleted_task,
+            }
+
+    raise HTTPException(
+        status_code=404,
+        detail="task not found"
+    )
 
 @app.post("/tasks", status_code=201)
 def create_task(task: TaskCreate):
