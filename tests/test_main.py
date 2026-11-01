@@ -1,14 +1,22 @@
-
+import pytest
 import main
 from fastapi.testclient import TestClient
+from database import get_db
+
+from db_test_conn import setup_test_database, teardown_test_database, override_get_db
+
+main.app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(main.app)
 
+@pytest.fixture(autouse=True)
+def setup_database():
+    setup_test_database()
 
-def setup_function():
-    # Reset in-memory data before each test.
-    main.tasks.clear()
-    main.next_task_id = 1
+    yield
+
+    teardown_test_database
+
 
 
 def test_health_endpoint():

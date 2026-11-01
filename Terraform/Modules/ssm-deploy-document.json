@@ -1,7 +1,7 @@
 
 {
   "schemaVersion": "2.2",
-  "description": "Deploy a SHA-tagged CloudOps API image to Kubernetes",
+  "description": "Run CloudOps database migrations and deploy a SHA-tagged API image to Kubernetes",
   "parameters": {
     "ImageTag": {
       "type": "String",
@@ -12,15 +12,26 @@
   "mainSteps": [
     {
       "action": "aws:runShellScript",
-      "name": "DeployCloudOpsApi",
+      "name": "MigrateAndDeployCloudOpsApi",
       "inputs": {
         "runCommand": [
           "set -eu",
           "IMAGE_TAG='{{ ImageTag }}'",
           "IMAGE_URI=\"145400477016.dkr.ecr.ap-south-1.amazonaws.com/cloudops-api:${IMAGE_TAG}\"",
+          "JOB_NAME=\"cloudops-migrate-${IMAGE_TAG}\"",
           "KUBECTL=\"$(command -v kubectl)\"",
-          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n default set image deployment/cloudops-api cloudops-api=\"${IMAGE_URI}\"",
-          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n default rollout status deployment/cloudops-api --timeout=180s"
+          "cat > /tmp/cloudops-migration-job.yaml <<EOF\napiVersion: batch/v1\nkind: Job\nmetadata:\n  name: ${JOB_NAME}\n  namespace: cloudops\nspec:\n  backoffLimit: 0\n  activeDeadlineSeconds: 300\n  template:\n    spec:\n      restartPolicy: Never\n      containers:\n        - name: db-migration\n          image: ${IMAGE_URI}\n          imagePullPolicy: IfNotPresent\n          command: [\"alembic\"]\n          args: [\"upgrade\", \"head\"]\n          env:\n            - name: POSTGRES_USER\n              valueFrom:\n                secretKeyRef:\n                  name: postgres-secret\n                  key: POSTGRES_USER\n            - name: POSTGRES_PASSWORD\n              valueFrom:\n                secretKeyRef:\n                  name: postgres-secret\n                  key: POSTGRES_PASSWORD\n            - name: POSTGRES_DB\n              valueFrom:\n                secretKeyRef:\n                  name: postgres-secret\n                  key: POSTGRES_DB\n            - name: DB_HOST\n              value: \"postgres\"\n            - name: DB_PORT\n              value: \"5432\"\nEOF",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops delete job \"${JOB_NAME}\" --ignore-not-found=true --wait=true",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config apply -f /tmp/cloudops-migration-job.yaml",
+          "if ! \"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops wait --for=condition=complete \"job/${JOB_NAME}\" --timeout=360s; then",
+          "  \"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops logs \"job/${JOB_NAME}\" --all-containers=true || true",
+          "  \"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops describe job \"${JOB_NAME}\" || true",
+          "  exit 1",
+          "fi",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops set env deployment/cloudops-api --from=secret/postgres-secret DB_HOST=postgres DB_PORT=5432",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops set image deployment/cloudops-api cloudops-api=\"${IMAGE_URI}\"",
+          "\"${KUBECTL}\" --kubeconfig /root/.kube/config -n cloudops rollout status deployment/cloudops-api --timeout=180s",
+          "rm -f /tmp/cloudops-migration-job.yaml"
         ]
       }
     }
