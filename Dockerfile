@@ -1,16 +1,22 @@
-FROM python:3.9-slim
+FROM python:3.13-slim
 
-WORKDIR /app1
+WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1
 
 ENV PYTHONDONTWRITEBYTECODE=1
 
-copy requirements.txt .
+COPY requirements.txt .
 
-run pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-copy main.py .
+# Application Modules
+COPY main.py database.py schemas.py models.py ./
+
+#Alembic migration configuration
+COPY alembic.ini .
+
+COPY alembic/ ./alembic/
 
 EXPOSE 8000
 
